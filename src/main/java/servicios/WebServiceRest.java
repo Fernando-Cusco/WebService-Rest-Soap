@@ -32,7 +32,7 @@ public class WebServiceRest {
 	@Path("/nuevo")
 	@Produces({MediaType.APPLICATION_JSON})
 	@Consumes({MediaType.APPLICATION_JSON})
-	public List<Cuenta> movimiento(Transaccion transaccion) {
+	public Respuesta movimiento(Transaccion transaccion) {
 		return on.nuevaTransferencia(transaccion);
 		
 	}

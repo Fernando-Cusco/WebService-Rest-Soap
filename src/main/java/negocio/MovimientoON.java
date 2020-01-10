@@ -11,6 +11,7 @@ import dao.CuentaDao;
 import dao.MovimientoDao;
 import modelo.Cuenta;
 import modelo.Movimiento;
+import servicios.Respuesta;
 import servicios.Transaccion;
 
 @Stateless
@@ -22,33 +23,43 @@ public class MovimientoON {
 	@Inject
 	private CuentaDao daoc;
 
-	public List<Cuenta> nuevaTransferencia(Transaccion t) {
-		Movimiento ori = null;
-		Movimiento det = null;
-		List<Cuenta> cuentas = new ArrayList<Cuenta>();
-		
-		if (t.getTipo().equals("t")) {
-			if (t.getOrigen() > 0 && t.getDestino() > 0) {
-				ori = new Movimiento();
-				det = new Movimiento();
-				Cuenta destino = daoc.buscarCuenta(t.getDestino());
-				Double saldo = destino.getSaldo();
-				saldo = saldo + t.getMonto();
-				Cuenta origen = daoc.buscarCuenta(t.getOrigen());
-				Double saldoo = origen.getSaldo();
+	public Respuesta nuevaTransferencia(Transaccion t) {
+		Movimiento ori = new Movimiento();
+		Movimiento det = new Movimiento();
+
+		Respuesta res = new Respuesta();
+		Cuenta destino = null;
+		Cuenta origen = null;
+		try {
+			destino = daoc.buscarCuenta(t.getDestino());
+			origen = daoc.buscarCuenta(t.getOrigen());
+		} catch (Exception e) {
+			if (destino == null) {
+				res.setCodigo(0);
+				res.setMensaje("Cuenta destino no existe");
+			}
+			if (origen == null) {
+				res.setCodigo(0);
+				res.setMensaje("Cuenta origen no existe");
+			}
+		}
+
+		if (destino != null && origen != null) {
+			Double saldo = destino.getSaldo();
+
+			Double saldoo = origen.getSaldo();
+			if (saldoo >= t.getMonto()) {
 				saldoo = saldoo - t.getMonto();
 				origen.setSaldo(saldoo);
+				saldo = saldo + t.getMonto();
 				destino.setSaldo(saldo);
 				daoc.actualizarSaldo(origen);
 				daoc.actualizarSaldo(destino);
-				cuentas.add(origen);
-				cuentas.add(destino);
-				
 				ori.setFecha(new Date());
 				ori.setMonto(t.getMonto());
 				ori.setNumero(t.getOrigen());
 				ori.setTipo("Debito");
-				
+
 				det.setFecha(new Date());
 				det.setMonto(t.getMonto());
 				det.setNumero(t.getDestino());
@@ -56,25 +67,14 @@ public class MovimientoON {
 				dao.nuevaTransaccion(ori);
 				dao.nuevaTransaccion(det);
 				origen.agregarMovimiento(ori);
-				destino.agregarMovimiento(det);	
-			}
-		} else if (t.getTipo().equals("r")) {
-			if (t.getOrigen() > 0) {
-				ori = new Movimiento();
-				Cuenta origen = daoc.buscarCuenta(t.getOrigen());
-				Double saldoo = origen.getSaldo();
-				saldoo = saldoo - t.getMonto();
-				origen.setSaldo(saldoo);
-				daoc.actualizarSaldo(origen);
-				cuentas.add(origen);
-				ori.setFecha(new Date());
-				ori.setMonto(t.getMonto());
-				ori.setNumero(t.getOrigen());
-				ori.setTipo("Retiro");
-				dao.nuevaTransaccion(ori);
-				origen.agregarMovimiento(ori);
+				destino.agregarMovimiento(det);
+				res.setCodigo(1);
+				res.setMensaje("Transaccion finalizada correctamente");
+			} else {
+				res.setCodigo(0);
+				res.setMensaje("Saldo insuficiente");
 			}
 		}
-		return cuentas;
+		return res;
 	}
 }
